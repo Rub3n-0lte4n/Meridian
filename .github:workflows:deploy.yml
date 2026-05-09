@@ -1,0 +1,73 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2869
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 name: Deploy to GitHub Pages\
+\
+on:\
+  push:\
+    branches:\
+      - main\
+  workflow_dispatch:\
+\
+permissions:\
+  contents: read\
+  pages: write\
+  id-token: write\
+\
+concurrency:\
+  group: "pages"\
+  cancel-in-progress: false\
+\
+jobs:\
+  build:\
+    name: Build\
+    runs-on: ubuntu-latest\
+    steps:\
+      - name: Checkout\
+        uses: actions/checkout@v4\
+      - name: Setup Node.js\
+        uses: actions/setup-node@v4\
+        with:\
+          node-version: "22"\
+      - name: Setup pnpm\
+        uses: pnpm/action-setup@v4\
+        with:\
+          version: 10\
+          run_install: false\
+      - name: Get pnpm store directory\
+        shell: bash\
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV\
+      - name: Setup pnpm cache\
+        uses: actions/cache@v4\
+        with:\
+          path: $\{\{ env.STORE_PATH \}\}\
+          key: $\{\{ runner.os \}\}-pnpm-store-$\{\{ hashFiles('**/pnpm-lock.yaml') \}\}\
+          restore-keys: |\
+            $\{\{ runner.os \}\}-pnpm-store-\
+      - name: Install dependencies\
+        working-directory: ./website\
+        run: pnpm install --frozen-lockfile\
+      - name: Build\
+        working-directory: ./website\
+        run: pnpm run build:gh-pages\
+      - name: Upload artifact\
+        uses: actions/upload-pages-artifact@v3\
+        with:\
+          path: ./website/dist/public\
+\
+  deploy:\
+    name: Deploy\
+    environment:\
+      name: github-pages\
+      url: $\{\{ steps.deployment.outputs.page_url \}\}\
+    runs-on: ubuntu-latest\
+    needs: build\
+    steps:\
+      - name: Deploy to GitHub Pages\
+        id: deployment\
+        uses: actions/deploy-pages@v4\
+}
